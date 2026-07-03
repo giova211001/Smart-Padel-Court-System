@@ -21,10 +21,10 @@ SENSORS_TOPIC = "deec/evt/status"
 
 # Address of the Cloud MQTT Broker:
 # Parameters:
-CLOUD_MQTT_URL = "a2j3sdwjviyo3z-ats.iot.eu-west-1.amazonaws.com"
+CLOUD_MQTT_URL        = "your-endpoint.iot.eu-west-1.amazonaws.com"
 CERTIFICATE_AUTH_FILE = "certs/AmazonRootCA1.pem"
-CERT_PEM_FILE = "certs/3095d136500819f4c2b8bd0ad31c160634250059094ac52e49fd28b70187e7b4-certificate.pem.crt"
-PRIVATE_KEY_FILE = "certs/3095d136500819f4c2b8bd0ad31c160634250059094ac52e49fd28b70187e7b4-private.pem.key"
+CERT_PEM_FILE         = "certs/certificate.pem.crt"
+PRIVATE_KEY_FILE      = "certs/private.pem.key"
 
 # A topic to get information from the cloud:     
 CLOUD_TOPIC = "deec/cmd/leds"

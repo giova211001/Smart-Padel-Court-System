@@ -23,10 +23,10 @@ from datetime import datetime, timedelta
 app = Flask(__name__, template_folder='templates')
 
 # ── Configurations AWS IoT Core ────────────────────────────────────────────
-CLOUD_MQTT_URL       = "a2j3sdwjviyo3z-ats.iot.eu-west-1.amazonaws.com" 
+CLOUD_MQTT_URL        = "your-endpoint.iot.eu-west-1.amazonaws.com"
 CERTIFICATE_AUTH_FILE = "certs/AmazonRootCA1.pem"
-CERT_PEM_FILE         = "certs/3095d136500819f4c2b8bd0ad31c160634250059094ac52e49fd28b70187e7b4-certificate.pem.crt"
-PRIVATE_KEY_FILE      = "certs/3095d136500819f4c2b8bd0ad31c160634250059094ac52e49fd28b70187e7b4-private.pem.key"
+CERT_PEM_FILE         = "certs/certificate.pem.crt"
+PRIVATE_KEY_FILE      = "certs/private.pem.key"
 CLOUD_PORT            = 8883
 
 # MQTT Topics (shared with C nodes and bridge)
