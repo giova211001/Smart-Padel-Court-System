@@ -10,3 +10,6 @@ obj_zoul/
 *.elf
 *.hex
 *.map
+.DS_Store
+mqtt_publisher
+mqtt_publisher1
