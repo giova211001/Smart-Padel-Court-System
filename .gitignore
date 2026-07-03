@@ -1,0 +1,12 @@
+certs/
+*.pem
+*.key
+*.crt
+__pycache__/
+*.pyc
+Makefile.target
+obj_zoul/
+*.bin
+*.elf
+*.hex
+*.map

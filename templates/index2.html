@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Smart Padel Court System - Live Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0d1117;--panel:#161b22;--card:#1c2333;--border:#30363d;
+  --accent:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d29922;
+  --purple:#bc8cff;--text:#e6edf3;--muted:#8b949e;--dim:#484f58;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+/* HEADER */
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;}
+header h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em;}
+.status-bar-top{display:flex;align-items:center;gap:1rem;font-size:.78rem;color:var(--muted);}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* TABS */
+nav.tabs{background:var(--panel);border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 1.5rem;}
+.tab{padding:.7rem 1.2rem;font-size:.85rem;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s;user-select:none;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* LAYOUT */
+.main{display:grid;grid-template-columns:280px 1fr;gap:0;flex:1;overflow:hidden;}
+.left-panel{background:var(--panel);border-right:1px solid var(--border);padding:1rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
+.right-panel{padding:1rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;}
+
+/* SECTION TITLES */
+.sec-title{font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem;}
+
+/* CLUB MAP */
+.club-map{background:#1a2e1a;border:1px solid var(--border);border-radius:10px;padding:.8rem;position:relative;}
+.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.map-court{border-radius:5px;position:relative;overflow:hidden;cursor:pointer;transition:transform .15s;}
+.map-court:hover{transform:scale(1.03);}
+.map-court svg{width:100%;display:block;}
+
+/* NOTIFICATIONS */
+.notif{display:flex;gap:.6rem;align-items:flex-start;padding:.55rem .6rem;border-radius:8px;margin-bottom:.4rem;font-size:.78rem;background:var(--card);border:1px solid var(--border);}
+.notif-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;margin-top:1px;}
+.notif-red{background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);}
+.notif-green{background:rgba(63,185,80,.15);border:1px solid rgba(63,185,80,.3);}
+.notif-yellow{background:rgba(210,153,34,.15);border:1px solid rgba(210,153,34,.3);}
+.notif-title{font-weight:600;color:var(--text);}
+.notif-sub{color:var(--muted);font-size:.72rem;}
+
+/* COURT CARDS GRID */
+.courts-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+.court-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem;transition:border-color .2s;}
+.court-card.status-free    {border-left:3px solid var(--green);}
+.court-card.status-occupied{border-left:3px solid var(--red);}
+.court-card.status-booked  {border-left:3px solid var(--red);}
+
+.cc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;}
+.cc-name{font-size:.95rem;font-weight:700;}
+.cc-menu{color:var(--muted);cursor:pointer;font-size:1.1rem;padding:.1rem .4rem;border-radius:4px;}
+.cc-menu:hover{background:var(--border);}
+
+.cc-body{display:flex;gap:.8rem;align-items:center;margin-bottom:.9rem;}
+
+/* Status circle */
+.status-circle{width:72px;height:72px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;position:relative;}
+.sc-free    {background:rgba(63,185,80,.12); border:3px solid var(--green);box-shadow:0 0 18px rgba(63,185,80,.3);}
+.sc-occupied{background:rgba(248,81,73,.12); border:3px solid var(--red);  box-shadow:0 0 18px rgba(248,81,73,.3);}
+.sc-booked  {background:rgba(248,81,73,.12); border:3px solid var(--red);  box-shadow:0 0 18px rgba(248,81,73,.3);}
+.sc-inner{width:40px;height:40px;border-radius:50%;}
+.sci-free    {background:var(--green);}
+.sci-occupied{background:var(--red);}
+.sci-booked  {background:var(--red);}
+.sc-label{font-size:.6rem;font-weight:800;letter-spacing:.06em;margin-top:3px;}
+.scl-free    {color:var(--green);}
+.scl-occupied{color:var(--red);}
+.scl-booked  {color:var(--red);}
+
+/* Sensors */
+.cc-sensors{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;flex:1;}
+.sensor-item{background:var(--panel);border-radius:6px;padding:.4rem .5rem;}
+.sensor-icon{font-size:.75rem;margin-bottom:1px;}
+.sensor-label{font-size:.62rem;color:var(--muted);}
+.sensor-val{font-size:.95rem;font-weight:700;line-height:1.1;}
+.sensor-sub{font-size:.58rem;color:var(--muted);}
+canvas.spark{height:24px!important;margin-top:2px;}
+
+/* Virtual LED indicator */
+.vled{width:12px;height:12px;border-radius:50%;flex-shrink:0;transition:background .4s,box-shadow .4s;}
+.vled-on {background:var(--red);  box-shadow:0 0 8px rgba(248,81,73,.7);}
+.vled-off{background:var(--green);box-shadow:0 0 8px rgba(63,185,80,.7);}
+.vled-wrap{display:flex;align-items:center;gap:.35rem;font-size:.68rem;color:var(--muted);}
+
+/* CC footer */
+.cc-footer{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.motion-info{font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:.3rem;}
+.cc-actions{display:flex;align-items:center;gap:.5rem;}
+.btn-book{background:var(--accent);color:#0d1117;border:none;border-radius:6px;padding:.38rem .85rem;font-size:.75rem;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.btn-book:hover{opacity:.85;}
+.btn-booked{background:var(--dim);color:var(--muted);border:none;border-radius:6px;padding:.38rem .85rem;font-size:.75rem;font-weight:600;cursor:default;}
+.toggle-wrap{display:flex;align-items:center;gap:.3rem;font-size:.68rem;color:var(--muted);}
+.toggle{position:relative;width:32px;height:18px;cursor:pointer;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:var(--dim);border-radius:9px;transition:.2s;}
+.toggle-slider:before{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+.toggle input:checked+.toggle-slider{background:var(--accent);}
+.toggle input:checked+.toggle-slider:before{transform:translateX(14px);}
+
+/* BOTTOM CHARTS (tabs) */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+.chart-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem;}
+.chart-title{font-size:.8rem;font-weight:600;margin-bottom:.8rem;color:var(--text);}
+canvas.main-chart{max-height:180px;}
+
+/* ANALYTICS TAB */
+.analytics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-bottom:.8rem;}
+.akpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;position:relative;overflow:hidden;}
+.akpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--purple));}
+.akpi-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;}
+.akpi-val{font-size:1.6rem;font-weight:800;}
+.akpi-sub{font-size:.7rem;color:var(--muted);margin-top:.2rem;}
+.heatmap-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.8rem;}
+.hm-grid{display:grid;gap:3px;margin-top:.5rem;}
+.ranking-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem;}
+
+/* STATUS BAR BOTTOM */
+footer{background:var(--panel);border-top:1px solid var(--border);padding:.5rem 1.5rem;font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.6rem;}
+
+/* DURATION MODAL */
+.dur-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.dur-modal-overlay.show{display:flex;}
+.dur-modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.8rem;width:380px;max-width:92vw;}
+.dur-modal h3{font-size:1rem;font-weight:700;margin-bottom:.3rem;}
+.dur-modal p{font-size:.8rem;color:var(--muted);margin-bottom:1.2rem;}
+.dur-options{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.4rem;}
+.dur-option{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:2px solid var(--border);border-radius:10px;padding:.75rem 1rem;cursor:pointer;transition:all .15s;}
+.dur-option:hover{border-color:var(--accent);background:#161b22;}
+.dur-option.selected{border-color:var(--accent);background:rgba(88,166,255,.08);}
+.dur-option-left{display:flex;align-items:center;gap:.7rem;}
+.dur-icon{font-size:1.3rem;}
+.dur-label{font-weight:700;font-size:.9rem;}
+.dur-sub{font-size:.72rem;color:var(--muted);}
+.dur-price{font-size:.85rem;font-weight:700;color:var(--accent);}
+.dur-modal-actions{display:flex;gap:.6rem;justify-content:flex-end;}
+.btn-cancel-modal{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:.55rem 1.1rem;cursor:pointer;font-size:.82rem;}
+.btn-confirm-modal{background:var(--accent);color:#0d1117;border:none;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700;font-size:.82rem;}
+.btn-confirm-modal:disabled{opacity:.4;cursor:not-allowed;}
+
+/* HIDDEN TAB CONTENT */
+.tab-content{display:none;flex-direction:column;gap:1rem;}
+.tab-content.active{display:flex;}
+
+@media(max-width:900px){
+  .main{grid-template-columns:1fr;}
+  .left-panel{display:none;}
+  .courts-grid,.charts-row,.analytics-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <h1>Smart Padel Court System — Live Dashboard</h1>
+  <div class="status-bar-top">
+    <span class="live-dot"></span>
+    <span>Connected to AWS IoT Core</span>
+    <span style="color:var(--dim)">|</span>
+    <span id="last-update">JSON Payload received: just now</span>
+    <span style="color:var(--dim)">|</span>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- TABS -->
+<nav class="tabs">
+  <div class="tab active" onclick="switchTab('live')">Live Status</div>
+  <div class="tab" onclick="switchTab('trends')">Environmental Trends</div>
+  <div class="tab" onclick="switchTab('analytics')">Smart Analytics</div>
+</nav>
+
+<!-- DURATION MODAL -->
+<div class="dur-modal-overlay" id="dur-modal">
+  <div class="dur-modal">
+    <h3 id="dur-title">Book Padel Court 1</h3>
+    <p id="dur-subtitle">Select your preferred session duration</p>
+    <div class="dur-options">
+      <div class="dur-option" id="dur-60" onclick="selectDur(60)">
+        <div class="dur-option-left">
+          <span class="dur-icon">⏱️</span>
+          <div>
+            <div class="dur-label">1 Hour</div>
+            <div class="dur-sub" id="dur-60-time">—</div>
+          </div>
+        </div>
+        <span class="dur-price">€12</span>
+      </div>
+      <div class="dur-option" id="dur-90" onclick="selectDur(90)">
+        <div class="dur-option-left">
+          <span class="dur-icon">⏳</span>
+          <div>
+            <div class="dur-label">1 Hour 30 Min</div>
+            <div class="dur-sub" id="dur-90-time">—</div>
+          </div>
+        </div>
+        <span class="dur-price">€17</span>
+      </div>
+      <div class="dur-option" id="dur-120" onclick="selectDur(120)">
+        <div class="dur-option-left">
+          <span class="dur-icon">🏆</span>
+          <div>
+            <div class="dur-label">2 Hours</div>
+            <div class="dur-sub" id="dur-120-time">—</div>
+          </div>
+        </div>
+        <span class="dur-price">€22</span>
+      </div>
+    </div>
+    <div class="dur-modal-actions">
+      <button class="btn-cancel-modal" onclick="closeDurModal()">Cancel</button>
+      <button class="btn-confirm-modal" id="dur-confirm" disabled onclick="confirmBooking()">Confirm Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div>
+      <div class="sec-title">Live Padel Club Map</div>
+      <div class="club-map">
+        <div class="map-grid" id="map-grid"></div>
+      </div>
+    </div>
+    <div>
+      <div class="sec-title">Notifications & Alerts</div>
+      <div id="notif-list">
+        <div class="notif"><div class="notif-icon notif-red">⚠️</div><div><div class="notif-title">Luminosity low on Court 4</div><div class="notif-sub">TSL2561 threshold alert · 4 hours ago</div></div></div>
+        <div class="notif"><div class="notif-icon notif-green">✅</div><div><div class="notif-title">Booking confirmed Court 1</div><div class="notif-sub">Booking confirmed · 12 min ago</div></div></div>
+        <div class="notif"><div class="notif-icon notif-yellow">🔥</div><div><div class="notif-title">High temp Court 5</div><div class="notif-sub">DHT22 reading 26.8°C · 30 min ago</div></div></div>
+        <div class="notif"><div class="notif-icon notif-green">📡</div><div><div class="notif-title">All nodes online</div><div class="notif-sub">Physical + Virtual · just now</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <!-- LIVE STATUS TAB -->
+    <div class="tab-content active" id="tab-live">
+      <div style="font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Court Status Cards</div>
+      <div class="courts-grid" id="courts-grid"></div>
+    </div>
+
+    <!-- TRENDS TAB -->
+    <div class="tab-content" id="tab-trends">
+      <div class="charts-row">
+        <div class="chart-panel"><div class="chart-title">🌡️ Temperature — Past 24H (avg all courts)</div><canvas class="main-chart" id="chartTemp"></canvas></div>
+        <div class="chart-panel"><div class="chart-title">💧 Humidity — Past 24H (avg all courts)</div><canvas class="main-chart" id="chartHum"></canvas></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-panel"><div class="chart-title">💡 Luminosity — Past 24H (avg all courts)</div><canvas class="main-chart" id="chartLux"></canvas></div>
+        <div class="chart-panel"><div class="chart-title">👤 Occupancy Rate — Past 24H</div><canvas class="main-chart" id="chartOcc"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS TAB -->
+    <div class="tab-content" id="tab-analytics">
+      <div class="analytics-grid">
+        <div class="akpi"><div class="akpi-label">Top Court</div><div class="akpi-val" id="sm-day">—</div><div class="akpi-sub" id="sm-day-sub">—</div></div>
+        <div class="akpi"><div class="akpi-label">Peak Hour</div><div class="akpi-val" id="sm-hour">—</div><div class="akpi-sub" id="sm-hour-sub">—</div></div>
+        <div class="akpi"><div class="akpi-label">Avg Temperature</div><div class="akpi-val" id="sm-court">—</div><div class="akpi-sub" id="sm-court-sub">—</div></div>
+        <div class="akpi"><div class="akpi-label">Avg Humidity</div><div class="akpi-val" id="sm-rate">—</div><div class="akpi-sub">overall rate</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-panel"><div class="chart-title">📅 Occupancy by Day of Week (%)</div><canvas class="main-chart" id="chartDays"></canvas></div>
+        <div class="chart-panel"><div class="chart-title">⏰ Occupancy by Hour (%)</div><canvas class="main-chart" id="chartHours"></canvas></div>
+      </div>
+      <div class="heatmap-wrap">
+        <div class="chart-title">🔥 Occupancy Heatmap — Hour × Day</div>
+        <div id="heatmap" class="hm-grid"></div>
+        <div style="display:flex;align-items:center;gap:.4rem;margin-top:.6rem;font-size:.7rem;color:var(--muted);">
+          Low <div style="display:flex;gap:2px;">
+        <div style="width:14px;height:12px;border-radius:2px;background:rgba(63,185,80,0.08)"></div>
+        <div style="width:14px;height:12px;border-radius:2px;background:rgba(63,185,80,0.25)"></div>
+        <div style="width:14px;height:12px;border-radius:2px;background:rgba(63,185,80,0.45)"></div>
+        <div style="width:14px;height:12px;border-radius:2px;background:rgba(63,185,80,0.70)"></div>
+        <div style="width:14px;height:12px;border-radius:2px;background:rgba(63,185,80,0.95)"></div>
+  </div> High
+        </div>
+      </div>
+      <div class="ranking-wrap">
+        <div class="chart-title">🏆 Court Usage Ranking — This Week</div>
+        <div id="court-ranking" style="display:flex;flex-direction:column;gap:.55rem;margin-top:.4rem;"></div>
+      </div>
+    </div>
+
+
+  </div><!-- right-panel -->
+</div><!-- main -->
+
+<footer>
+  <span class="live-dot"></span>
+  <span id="footer-status">Connected to AWS IoT Core — JSON Payload received: just now</span>
+</footer>
+
+<script>
+// ── Data ───────────────────────────────────────────────────────────────────
+const courts = [
+  {id:'Court_01',name:'Padel Court 1',type:'physical',temp:24.5,hum:58,lux:520,occupancy:0,booking:0,lastSeen:'just now',led:false},
+  {id:'Court_02',name:'Padel Court 2',type:'physical',temp:24.5,hum:58,lux:520,occupancy:1,booking:0,lastSeen:'just now',led:true},
+  {id:'Court_03',name:'Padel Court 3',type:'virtual', temp:23.1,hum:61,lux:480,occupancy:1,booking:1,lastSeen:'30s ago',led:true},
+  {id:'Court_04',name:'Padel Court 4',type:'virtual', temp:25.2,hum:65,lux:198,occupancy:1,booking:1,lastSeen:'30s ago',led:false},
+  {id:'Court_05',name:'Padel Court 5',type:'virtual', temp:26.8,hum:63,lux:410,occupancy:0,booking:0,lastSeen:'30s ago',led:false},
+  {id:'Court_06',name:'Padel Court 6',type:'virtual', temp:22.9,hum:55,lux:390,occupancy:0,booking:0,lastSeen:'30s ago',led:false},
+  {id:'Court_07',name:'Padel Court 7',type:'virtual', temp:24.1,hum:60,lux:350,occupancy:0,booking:1,lastSeen:'30s ago',led:true},
+  {id:'Court_08',name:'Padel Court 8',type:'virtual', temp:23.5,hum:57,lux:375,occupancy:0,booking:0,lastSeen:'30s ago',led:false},
+];
+
+const DAYS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const HOURS = ['08','09','10','11','12','13','14','15','16','17','18','19','20','21','22'];
+let secsSinceUpdate = 0;
+
+// Sparkline history per court
+const sparkH = {};
+courts.forEach(c=>{ sparkH[c.id]={ temp:Array.from({length:8},()=>+(c.temp+(Math.random()-.5)*1.5).toFixed(1)), hum:Array.from({length:8},()=>Math.round(c.hum+(Math.random()-.5)*5)), lux:Array.from({length:8},()=>Math.round(c.lux+(Math.random()-.5)*30)) }; });
+
+// ── Clock & status ─────────────────────────────────────────────────────────
+setInterval(()=>{
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  secsSinceUpdate++;
+  const t = secsSinceUpdate<60?`${secsSinceUpdate}s ago`:`${Math.floor(secsSinceUpdate/60)}m ago`;
+  document.getElementById('last-update').textContent = `JSON Payload received: ${t}`;
+  document.getElementById('footer-status').textContent = `Connected to AWS IoT Core — JSON Payload received: ${t}`;
+},1000);
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['live','trends','analytics'][i]===name));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='analytics') buildAnalytics();
+  if(name==='trends') buildTrends();
+}
+
+// ── Status helpers ─────────────────────────────────────────────────────────
+function statusOf(c){ return c.booking?'booked':c.occupancy?'occupied':'free'; }
+function colorOf(c){ return (c.booking||c.occupancy)?'var(--red)':'var(--green)'; }
+function labelOf(c){ return c.booking?'BOOKED':c.occupancy?'OCCUPIED':'AVAILABLE'; }
+
+// ── Club Map ───────────────────────────────────────────────────────────────
+function buildMap(){
+  const g = document.getElementById('map-grid');
+  g.innerHTML = courts.slice(0,8).map(c=>{
+    const col = (c.booking||c.occupancy)?'#f85149':'#3fb950';
+    const floor= (c.booking||c.occupancy)?'#1a0808':'#0a1a10';
+    return `<div class="map-court" onclick="switchTab('live')" title="${c.name}">
+      <svg viewBox="0 0 100 66" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="66" fill="#0d1117"/>
+        <rect x="4" y="4" width="92" height="58" rx="2" fill="${floor}" stroke="${col}" stroke-width="1.5"/>
+        <line x1="50" y1="4" x2="50" y2="62" stroke="${col}55" stroke-width=".8"/>
+        <line x1="4" y1="33" x2="96" y2="33" stroke="${col}" stroke-width="1.2"/>
+        <line x1="18" y1="4" x2="18" y2="62" stroke="${col}55" stroke-width=".8"/>
+        <line x1="82" y1="4" x2="82" y2="62" stroke="${col}55" stroke-width=".8"/>
+        <line x1="18" y1="33" x2="82" y2="33" stroke="${col}55" stroke-width=".6"/>
+        ${Array.from({length:7},(_,i)=>`<line x1="${16+i*10}" y1="30" x2="${16+i*10}" y2="36" stroke="${col}" stroke-width=".5" opacity=".6"/>`).join('')}
+        <rect x="2" y="30" width="5" height="6" rx="1" fill="${col}"/>
+        <rect x="93" y="30" width="5" height="6" rx="1" fill="${col}"/>
+        <circle cx="90" cy="8" r="3" fill="${col}" opacity=".9"/>
+        <text x="8" y="14" fill="${col}" font-size="9" font-family="system-ui,sans-serif" font-weight="700" opacity=".95">${c.name.replace('Padel Court ','C')}</text>
+        ${c.occupancy&&!c.booking?`<circle cx="30" cy="20" r="4" fill="#fff" opacity=".7"/><circle cx="70" cy="48" r="4" fill="#fff" opacity=".5"/>`:'' }
+      </svg>
+    </div>`;
+  }).join('');
+}
+
+// ── Court Cards ────────────────────────────────────────────────────────────
+function buildSparkline(canvasId, data, color){
+  const el = document.getElementById(canvasId);
+  if(!el) return;
+  new Chart(el,{type:'line',data:{labels:data.map((_,i)=>i),datasets:[{data,borderColor:color,borderWidth:1.5,pointRadius:0,tension:.4,fill:false}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},animation:{duration:0}}});
+}
+
+function renderCourts(){
+  const g = document.getElementById('courts-grid');
+  g.innerHTML = courts.map(c=>{
+    const st=statusOf(c), col=colorOf(c);
+    const motionMins = Math.floor(Math.random()*10+1);
+    return `
+    <div class="court-card status-${st}">
+      <div class="cc-header">
+        <span class="cc-name">${c.name} ${c.type==='physical'?'<span style="font-size:.6rem;color:var(--accent);font-weight:400">● PHYSICAL</span>':'<span style="font-size:.6rem;color:var(--purple);font-weight:400">● VIRTUAL</span>'}</span>
+      </div>
+      <div class="cc-body">
+        <div class="status-circle sc-${st}">
+          <div class="sc-inner sci-${st}"></div>
+          <div class="sc-label scl-${st}">${labelOf(c)}</div>
+        </div>
+        <div class="cc-sensors">
+          <div class="sensor-item">
+            <div class="sensor-icon">🌡️</div>
+            <div class="sensor-label">Temperature</div>
+            <div class="sensor-val">${c.temp} °C</div>
+            <canvas class="spark" id="sp-temp-${c.id}" height="24"></canvas>
+            <div class="sensor-sub">Current</div>
+          </div>
+          <div class="sensor-item">
+            <div class="sensor-icon">💧</div>
+            <div class="sensor-label">Humidity</div>
+            <div class="sensor-val">${c.hum} %</div>
+            <canvas class="spark" id="sp-hum-${c.id}" height="24"></canvas>
+            <div class="sensor-sub">Current</div>
+          </div>
+          <div class="sensor-item">
+            <div class="sensor-icon">💡</div>
+            <div class="sensor-label">Luminosity</div>
+            <div class="sensor-val">${c.lux}</div>
+            <canvas class="spark" id="sp-lux-${c.id}" height="24"></canvas>
+            <div class="sensor-sub ${c.lux<300?'style="color:var(--red)"':''}Lux">${c.lux<300?'⚠️ Low':'Optimal'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="cc-footer">
+        <div class="motion-info">🚶 Last Motion: <strong style="color:var(--text);margin-left:.2rem">${motionMins} min${motionMins>1?'s':''} ago</strong></div>
+        <div class="cc-actions">
+          ${c.type==='virtual'?`<div class="vled-wrap"><div class="vled ${c.booking?'vled-on':'vled-off'}"></div><span>LED</span></div>`:''}
+          ${c.booking
+            ? `<button class="btn-book" style="background:var(--red);" onclick="cancelBook('${c.id}')">Cancel Booking</button>`
+            : `<button class="btn-book" onclick="bookCourt('${c.id}')">Book Now</button>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Draw sparklines
+  courts.forEach(c=>{
+    buildSparkline(`sp-temp-${c.id}`, sparkH[c.id].temp, '#58a6ff');
+    buildSparkline(`sp-hum-${c.id}`,  sparkH[c.id].hum,  '#3fb950');
+    buildSparkline(`sp-lux-${c.id}`,  sparkH[c.id].lux,  '#d29922');
+  });
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+let pendingBookingId = null;
+let selectedDuration = null;
+
+function bookCourt(id){
+  confirmBookingDirect(id);
+}
+
+async function confirmBookingDirect(id){
+  const c = courts.find(x=>x.id===id);
+  try {
+    const res = await fetch('/api/booking', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({node_id: id, command: 'SET_BOOKING', status: 'ON'})
+    });
+    if(!res.ok) throw new Error(await res.text());
+    c.booking = 1;
+    c.led = true;
+    c.bookingEnd = '--:--';
+    c.bookingDur = '';
+    renderCourts();
+    buildMap();
+    addNotif('green','✅',`${c.name} booked — Downlink sent to AWS IoT Core`,'just now');
+  } catch(e) {
+    console.error('Booking error:', e);
+  }
+}
+
+function selectDur(mins){
+  selectedDuration = mins;
+  document.querySelectorAll('.dur-option').forEach(el=>el.classList.remove('selected'));
+  document.getElementById(`dur-${mins}`).classList.add('selected');
+  document.getElementById('dur-confirm').disabled = false;
+}
+
+function closeDurModal(){
+  document.getElementById('dur-modal').classList.remove('show');
+  pendingBookingId = null;
+  selectedDuration = null;
+}
+
+function confirmBooking(){
+  if(!pendingBookingId || !selectedDuration) return;
+  const c = courts.find(x=>x.id===pendingBookingId);
+  const end = new Date(Date.now()+selectedDuration*60000);
+  const endStr = end.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'});
+  const durLabel = selectedDuration===60?'1h':selectedDuration===90?'1h 30m':'2h';
+
+  c.booking = 1;
+  c.led = true;
+  c.bookingEnd = endStr;
+  c.bookingDur = durLabel;
+
+  closeDurModal();
+  renderCourts();
+  buildMap();
+  addNotif('green','✅',`${c.name} booked for ${durLabel}`,`Until ${endStr} — Downlink sent to AWS IoT Core`);
+  secsSinceUpdate = 0;
+  // fetch('/api/booking',{method:'POST',headers:{'Content-Type':'application/json'},
+  //   body:JSON.stringify({node_id:c.id,command:'SET_BOOKING',status:'ON',duration:selectedDuration})});
+}
+
+async function toggleLed(id, val){
+  const c = courts.find(x=>x.id===id);
+  c.led = val;
+  addNotif(val?'green':'yellow', val?'💡':'🔅', `LED ${val?'ON':'OFF'} — ${c.name}`, 'Command sent to AWS IoT Core');
+  secsSinceUpdate=0;
+  // fetch('/api/booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({node_id:id,command:'SET_BOOKING',status:val?'ON':'OFF'})});
+}
+
+function releaseAll(){ courts.forEach(c=>{c.booking=0;c.led=false;}); renderCourts(); buildMap(); addNotif('green','🔓','All bookings released','Admin action'); }
+function refreshData(){
+  courts.forEach(c=>{ c.temp=+(21+Math.random()*6).toFixed(1); c.hum=Math.round(50+Math.random()*20); c.lux=Math.round(200+Math.random()*350); c.occupancy=Math.random()>.6?1:0; });
+  renderCourts(); buildMap(); secsSinceUpdate=0;
+  addNotif('green','🔄','Data refreshed','Force refresh from AWS IoT Core');
+}
+
+function addNotif(type, icon, title, sub){
+  const list = document.getElementById('notif-list');
+  const el = document.createElement('div');
+  el.className='notif';
+  el.innerHTML=`<div class="notif-icon notif-${type}">${icon}</div><div><div class="notif-title">${title}</div><div class="notif-sub">${sub} · just now</div></div>`;
+  list.prepend(el);
+  if(list.children.length>6) list.removeChild(list.lastChild);
+}
+
+async function cancelBook(id){
+  const c = courts.find(x=>x.id===id);
+  try {
+    const res = await fetch('/api/booking', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({node_id: id, command: 'SET_BOOKING', status: 'OFF'})
+    });
+    if(!res.ok) throw new Error(await res.text());
+    c.booking = 0;
+    c.led = false;
+    renderCourts();
+    buildMap();
+    addNotif('green','🟢',`${c.name} booking cancelled — LED set to GREEN`,'just now');
+  } catch(e) {
+    console.error('Cancel booking error:', e);
+  }
+}
+
+// ── Trends Charts ──────────────────────────────────────────────────────────
+let trendChartsBuilt=false;
+async function buildTrends(){
+  if(trendChartsBuilt) return; trendChartsBuilt=true;
+
+  let history = [];
+  try {
+    const res = await fetch('/api/history');
+    if(res.ok) history = await res.json();
+  } catch(e) {
+    console.warn('[Trends] Could not fetch real history, falling back to simulated data', e);
+  }
+
+  let labels, tempData, humData, luxData, occData;
+
+  if(history && history.length > 0){
+    // Raggruppa per timestamp arrotondato, calcolando la media su tutti i campi per ogni istante
+    const byTs = {};
+    history.forEach(h=>{
+      const t = h.ts;
+      if(!byTs[t]) byTs[t] = {temp:[],hum:[],lux:[],occ:[]};
+      byTs[t].temp.push(h.temp);
+      byTs[t].hum.push(h.hum);
+      byTs[t].lux.push(h.lux);
+      byTs[t].occ.push(h.occupancy ? 100 : 0);
+    });
+    const sortedTs = Object.keys(byTs).sort((a,b)=>+a-+b);
+    const avg = arr => arr.reduce((s,v)=>s+v,0)/arr.length;
+
+    labels   = sortedTs.map(t => new Date(+t*1000).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}));
+    tempData = sortedTs.map(t => +avg(byTs[t].temp).toFixed(1));
+    humData  = sortedTs.map(t => +avg(byTs[t].hum).toFixed(1));
+    luxData  = sortedTs.map(t => Math.round(avg(byTs[t].lux)));
+    occData  = sortedTs.map(t => Math.round(avg(byTs[t].occ)));
+  } else {
+    // Fallback: dati simulati se l'API non risponde
+    labels = Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+    const rand=(base,amp)=>Array.from({length:24},()=>+(base+(Math.random()-.5)*amp).toFixed(1));
+    tempData = rand(23,4); humData = rand(60,15); luxData = rand(350,150); occData = rand(55,40);
+  }
+
+  const cfg=(label,data,color)=>({type:'line',data:{labels,datasets:[{label,data,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:2,tension:.4,fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:8},grid:{color:'#30363d'}},y:{ticks:{color:'#8b949e',font:{size:9}},grid:{color:'#30363d'}}}}});
+  new Chart(document.getElementById('chartTemp'), cfg('Temp °C',tempData,'#58a6ff'));
+  new Chart(document.getElementById('chartHum'),  cfg('Hum %',  humData,'#3fb950'));
+  new Chart(document.getElementById('chartLux'),  cfg('Lux',    luxData,'#d29922'));
+  new Chart(document.getElementById('chartOcc'),  cfg('Occ %',  occData,'#bc8cff'));
+}
+
+// ── Analytics ──────────────────────────────────────────────────────────────
+let analyticsBuilt=false;
+async function buildAnalytics(){
+  if(analyticsBuilt) return; analyticsBuilt=true;
+
+  let history = [];
+  try {
+    const res = await fetch('/api/history');
+    if(res.ok) history = await res.json();
+  } catch(e){ console.warn('Analytics fetch error:', e); }
+
+  if(history.length === 0){ console.warn('No history data'); return; }
+
+  // ── Calcola metriche reali ─────────────────────────────────────────────
+  const courtStats = {};
+  const hourStats  = {};
+
+  history.forEach(h=>{
+    const id   = h.node_id;
+    const hour = new Date(+h.ts*1000).getHours();
+    const hStr = String(hour).padStart(2,'0') + ':00';
+
+    if(!courtStats[id]) courtStats[id] = {occ:0, total:0, temp:[], hum:[]};
+    courtStats[id].total++;
+    if(h.occupancy) courtStats[id].occ++;
+    if(h.temp) courtStats[id].temp.push(h.temp);
+    if(h.hum)  courtStats[id].hum.push(h.hum);
+
+    if(!hourStats[hStr]) hourStats[hStr] = {occ:0, total:0};
+    hourStats[hStr].total++;
+    if(h.occupancy) hourStats[hStr].occ++;
+  });
+
+  const avg = arr => arr.length ? +(arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(1) : 0;
+
+  // Top court per occupancy
+  const topCourt = Object.entries(courtStats)
+    .sort((a,b)=>(b[1].occ/b[1].total)-(a[1].occ/a[1].total))[0];
+
+  // Peak hour
+  const peakHour = Object.entries(hourStats)
+    .sort((a,b)=>(b[1].occ/b[1].total)-(a[1].occ/a[1].total))[0];
+
+  // Avg temp e hum globali
+  const allTemps = history.filter(h=>h.temp).map(h=>h.temp);
+  const allHums  = history.filter(h=>h.hum).map(h=>h.hum);
+  const avgTemp  = avg(allTemps);
+  const avgHum   = avg(allHums);
+
+  // Overall occupancy rate
+  const overallOcc = Math.round(history.filter(h=>h.occupancy).length/history.length*100);
+
+  // ── KPI ───────────────────────────────────────────────────────────────
+  document.getElementById('sm-day').textContent   = topCourt ? topCourt[0].replace('Court_','C') : '--';
+  document.getElementById('sm-day-sub').textContent = topCourt ? Math.round(topCourt[1].occ/topCourt[1].total*100)+'% occupancy rate' : '--';
+  document.getElementById('sm-hour').textContent  = peakHour ? peakHour[0] : '--';
+  document.getElementById('sm-hour-sub').textContent = peakHour ? Math.round(peakHour[1].occ/peakHour[1].total*100)+'% avg occupancy' : '--';
+  document.getElementById('sm-court').textContent = avgTemp+'°C';
+  document.getElementById('sm-court-sub').textContent = 'avg temperature all courts';
+  document.getElementById('sm-rate').textContent  = avgHum+'%';
+  document.getElementById('sm-rate-sub') && (document.getElementById('sm-rate-sub').textContent = 'avg humidity all courts');
+
+  // ── Bar chart: occupancy by court ──────────────────────────────────────
+  const courtIds   = Object.keys(courtStats);
+  const courtOccs  = courtIds.map(id=>Math.round(courtStats[id].occ/courtStats[id].total*100));
+  const maxOcc     = Math.max(...courtOccs);
+
+  new Chart(document.getElementById('chartDays'),{
+    type:'bar',
+    data:{labels:courtIds.map(id=>id.replace('Court_','C')),datasets:[{
+      data:courtOccs,
+      backgroundColor:courtOccs.map(v=>v===maxOcc?'#58a6ff':'#58a6ff55'),
+      borderColor:courtOccs.map(v=>v===maxOcc?'#58a6ff':'transparent'),
+      borderWidth:1,borderRadius:4
+    }]},
+    options:{responsive:true,plugins:{legend:{display:false},title:{display:true,text:'Occupancy Rate by Court (%)',color:'#8b949e',font:{size:11}}},
+      scales:{x:{ticks:{color:'#8b949e',font:{size:9}},grid:{color:'#30363d'}},
+              y:{ticks:{color:'#8b949e',font:{size:9}},grid:{color:'#30363d'},max:100}}}
+  });
+
+  // ── Bar chart: occupancy by hour ───────────────────────────────────────
+  const hours    = Object.keys(hourStats).sort();
+  const hourOccs = hours.map(h=>Math.round(hourStats[h].occ/hourStats[h].total*100));
+  const maxHOcc  = Math.max(...hourOccs);
+
+  new Chart(document.getElementById('chartHours'),{
+    type:'bar',
+    data:{labels:hours,datasets:[{
+      data:hourOccs,
+      backgroundColor:hourOccs.map(v=>v===maxHOcc?'#bc8cff':'#bc8cff55'),
+      borderColor:hourOccs.map(v=>v===maxHOcc?'#bc8cff':'transparent'),
+      borderWidth:1,borderRadius:4
+    }]},
+    options:{responsive:true,plugins:{legend:{display:false},title:{display:true,text:'Occupancy Rate by Hour (%)',color:'#8b949e',font:{size:11}}},
+      scales:{x:{ticks:{color:'#8b949e',font:{size:9}},grid:{color:'#30363d'}},
+              y:{ticks:{color:'#8b949e',font:{size:9}},grid:{color:'#30363d'},max:100}}}
+  });
+
+  // ── Heatmap (court x hour) ─────────────────────────────────────────────
+  const hm = document.getElementById('heatmap');
+  hm.innerHTML = '';
+  hm.style.gridTemplateColumns = `50px repeat(${hours.length},1fr)`;
+
+  const corner = document.createElement('div');
+  corner.style.cssText='font-size:.6rem;color:#484f58;';
+  hm.appendChild(corner);
+  hours.forEach(h=>{
+    const el=document.createElement('div');
+    el.style.cssText='font-size:.58rem;color:#8b949e;text-align:center;';
+    el.textContent=h.replace(':00',''); hm.appendChild(el);
+  });
+
+  courtIds.forEach(id=>{
+    const lbl=document.createElement('div');
+    lbl.style.cssText='font-size:.62rem;color:#94a3b8;display:flex;align-items:center;';
+    lbl.textContent=id.replace('Court_','C'); hm.appendChild(lbl);
+    hours.forEach(h=>{
+      const key = id+'_'+h;
+      const occ = history.filter(x=>x.node_id===id && String(new Date(+x.ts*1000).getHours()).padStart(2,'0')+':00'===h && x.occupancy).length;
+      const tot = history.filter(x=>x.node_id===id && String(new Date(+x.ts*1000).getHours()).padStart(2,'0')+':00'===h).length;
+      const rate = tot>0 ? occ/tot : 0;
+      const cell=document.createElement('div');
+      cell.style.cssText=`height:18px;border-radius:3px;background:rgba(63,185,80,${0.06+rate*0.94});cursor:default;transition:transform .1s`;
+      cell.title=`${id} ${h} — ${Math.round(rate*100)}% occupancy`;
+      cell.onmouseenter=()=>cell.style.transform='scale(1.15)';
+      cell.onmouseleave=()=>cell.style.transform='scale(1)';
+      hm.appendChild(cell);
+    });
+  });
+
+  // ── Court ranking ──────────────────────────────────────────────────────
+  const rk = document.getElementById('court-ranking');
+  if(rk){
+    rk.innerHTML='';
+    const sorted = Object.entries(courtStats).sort((a,b)=>b[1].occ-a[1].occ);
+    const maxS = sorted[0][1].occ;
+    sorted.forEach(([id,s],i)=>{
+      const pct=Math.round(s.occ/maxS*100);
+      const col=i===0?'var(--accent)':i===1?'var(--purple)':i===2?'var(--yellow)':'var(--dim)';
+      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'  ';
+      rk.innerHTML+=`<div style="display:flex;align-items:center;gap:.6rem;font-size:.78rem">
+        <span style="width:1.4rem">${medal}</span>
+        <span style="width:80px">${id.replace('Court_','Court ')}</span>
+        <div style="flex:1;background:var(--panel);border-radius:3px;height:8px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${col};border-radius:3px"></div>
+        </div>
+        <span style="color:var(--muted);width:70px;text-align:right">${s.occ} detections</span>
+      </div>`;
+    });
+  }
+}
+// ── Admin Node Table ───────────────────────────────────────────────────────
+function buildAdmin(){
+  document.getElementById('node-table').innerHTML=courts.map(c=>`
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:.6rem .5rem;font-weight:600">${c.name}</td>
+      <td style="padding:.6rem .5rem;font-size:.75rem;color:${c.type==='physical'?'var(--accent)':'var(--purple)'}">${c.type.toUpperCase()}</td>
+      <td style="padding:.6rem .5rem;color:var(--muted);font-size:.78rem">${c.lastSeen}</td>
+      <td style="padding:.6rem .5rem"><span style="color:var(--green);font-size:.75rem">● ONLINE</span></td>
+    </tr>`).join('');
+}
+
+// ── AWS IoT Core polling ───────────────────────────────────────────────────
+// Imposta a true quando Flask è in esecuzione con AWS connesso.
+// Se false, usa dati simulati localmente (utile per sviluppo UI).
+const USE_BACKEND = true;
+
+async function fetchFromBackend(){
+  try {
+    const res = await fetch('/api/courts');
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    data.forEach(node => {
+      const c = courts.find(x => x.id === node.node_id);
+      if(!c) return;
+      // Aggiorna tutti i campi ricevuti dal backend
+      c.temp      = node.temp      ?? c.temp;
+      c.hum       = node.hum       ?? c.hum;
+      c.lux       = node.lux       ?? c.lux;
+      c.occupancy = node.occupancy ?? c.occupancy;
+      // Non sovrascrivere booking se già impostato dalla dashboard
+      if(!c.booking) c.booking = node.booking ?? 0;
+      c.lastSeen  = node.last_seen ?? 'just now';
+      // Aggiorna sparkline history
+      sparkH[c.id].temp.push(c.temp); sparkH[c.id].temp.shift();
+      sparkH[c.id].hum.push(c.hum);   sparkH[c.id].hum.shift();
+      sparkH[c.id].lux.push(c.lux);   sparkH[c.id].lux.shift();
+    });
+    secsSinceUpdate = 0;
+    renderCourts();
+    buildMap();
+    addNotif('green','📡','Data updated','Live payload received from AWS IoT Core');
+  } catch(e) {
+    console.warn('[Backend] Fetch failed:', e.message);
+    addNotif('yellow','⚠️','Backend unreachable', e.message);
+  }
+}
+
+function simulateLocally(){
+  courts.forEach(c=>{
+    c.temp=+(c.temp+(Math.random()-.5)*.3).toFixed(1);
+    c.hum=Math.min(100,Math.max(30,Math.round(c.hum+(Math.random()-.5)*2)));
+    c.lux=Math.max(80,Math.round(c.lux+(Math.random()-.5)*15));
+    if(Math.random()<.04) c.occupancy=c.occupancy?0:1;
+    sparkH[c.id].temp.push(c.temp); sparkH[c.id].temp.shift();
+    sparkH[c.id].hum.push(c.hum);   sparkH[c.id].hum.shift();
+    sparkH[c.id].lux.push(c.lux);   sparkH[c.id].lux.shift();
+    c.lastSeen='just now';
+  });
+  secsSinceUpdate=0;
+  renderCourts(); buildMap();
+}
+
+// Ogni 30s: dati reali da AWS se USE_BACKEND=true, altrimenti simulati
+setInterval(USE_BACKEND ? fetchFromBackend : simulateLocally, 30000);
+
+// ── Init ───────────────────────────────────────────────────────────────────
+buildMap();
+renderCourts();
+</script>
+</body>
+</html>
